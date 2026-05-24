@@ -2488,7 +2488,7 @@ window.sendChatMessage = async function() {
   }
   inp.value = '';
   try {
-    await supabase.from('chats').insert([{ message: msg, from: 'user', user_id: currentUser?.uid || 'guest', created_at: new Date().toISOString() }]);
+    await supabase.from('chats').insert([{ message: msg, sender: 'user', user_id: currentUser?.uid || 'guest', created_at: new Date().toISOString() }]);
   } catch(e) {}
 }
 
@@ -2497,7 +2497,7 @@ window.sendAdminChat = async function() {
   const msg = inp?.value?.trim();
   if (!msg) return;
   try {
-    await supabase.from('chats').insert([{ message: msg, from: 'admin', created_at: new Date().toISOString() }]);
+    await supabase.from('chats').insert([{ message: msg, sender: 'admin', created_at: new Date().toISOString() }]);
     inp.value = '';
     showToast('Xabar yuborildi', '', 's');
   } catch(e) { showToast('Xato', e.message, 'e'); }
@@ -2738,4 +2738,3 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 </body>
 </html>
-
