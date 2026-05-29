@@ -1281,30 +1281,16 @@ async function sendTelegramNotification(order) {
   try {
     const items = (order.items || []).map(i => `  • ${i.name} x${i.qty} — ${Number(i.price).toLocaleString()} so'm`).join('\n');
     const paymentText = order.payment === 'cash' ? '💵 Naqd' : '💳 Karta';
-    const text = `🛒 *YANGI ZAKAZ!*
+    const commentLine = order.comment ? '\n💬 Izoh: ' + order.comment : '';
+    const text = '🛒 YANGI ZAKAZ!\n\n👤 Ism: ' + order.name + '\n📱 Telefon: ' + order.phone + '\n📍 Shahar: ' + (order.city || '—') + commentLine + '\n\n📦 Mahsulotlar:\n' + items + '\n\n💰 Jami: ' + Number(order.total).toLocaleString() + " so'm\n" + paymentText + '\n\n🕐 ' + new Date().toLocaleString('uz-UZ');
 
-👤 *Ism:* ${order.name}
-📱 *Telefon:* ${order.phone}
-📍 *Shahar:* ${order.city || '—'}
-${order.comment ? `💬 *Izoh:* ${order.comment}` : ''}
-
-📦 *Mahsulotlar:*
-${items}
-
-💰 *Jami:* ${Number(order.total).toLocaleString()} so'm
-${paymentText}
-
-🕐 ${new Date().toLocaleString('uz-UZ')}`;
-
-    await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
+    const res = await fetch('https://api.telegram.org/bot' + TG_TOKEN + '/sendMessage', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: TG_CHAT_ID,
-        text: text,
-        parse_mode: 'Markdown'
-      })
+      body: JSON.stringify({ chat_id: TG_CHAT_ID, text: text })
     });
+    const json = await res.json();
+    if (!json.ok) { console.error('TG xato:', JSON.stringify(json)); }
   } catch(e) {
     console.error('TG xato:', e.message);
   }
@@ -1840,7 +1826,7 @@ window.checkout = async function() {
   try {
     await sdb.insert('orders', order);
     // Telegram xabar yuborish
-    sendTelegramNotification(order);
+    await sendTelegramNotification(order);
     // Ombor kamayishi
     for (const cartItem of cart) {
       const p = products.find(x => x.id === cartItem.id);
