@@ -1275,6 +1275,25 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 // Supabase jadvallar tayyor bo'lgach: USE_LOCAL_STORAGE = false qiling
 const USE_LOCAL_STORAGE = false;
 
+// ─── SUPABASE STORAGE UPLOAD ───
+async function uploadToStorage(file, folder) {
+  try {
+    const ext = file.name.split('.').pop() || 'jpg';
+    const path = folder + '/' + Date.now() + '_' + Math.random().toString(36).slice(2) + '.' + ext;
+    const { data, error } = await supabase.storage.from('images').upload(path, file, {
+      cacheControl: '3600', upsert: false, contentType: file.type
+    });
+    if (error) throw error;
+    const { data: urlData } = supabase.storage.from('images').getPublicUrl(path);
+    return urlData.publicUrl;
+  } catch(e) {
+    console.error('Storage upload error:', e.message);
+    return null;
+  }
+}
+
+
+
 // ─── SUPABASE DB HELPER ───
 const sdb = {
   async getAll(table) {
@@ -2444,29 +2463,36 @@ window.updateHeroImage = function(idx) {
   showToast('✅ Saqlandi!', 'Hero rasm yangilandi', 's');
 }
 
-window.uploadHero = function(idx, input) {
+window.uploadHero = async function(idx, input) {
   const file = input.files[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const url = e.target.result;
+  showToast('⏳ Yuklanmoqda...', 'Iltimos kuting', 'i');
+  const publicUrl = await uploadToStorage(file, 'hero');
+  if (publicUrl) {
     const img = document.getElementById('heroImg' + idx);
     const prev = document.getElementById('adminHeroPreview' + idx);
     const urlInp = document.getElementById('heroUrlInput' + idx);
-    if (img) img.src = url;
-    if (prev) prev.src = url;
-    if (urlInp) urlInp.value = url;
-    const heroImgs = JSON.parse(localStorage.getItem('sc_hero_imgs') || '{}');
-    heroImgs[idx] = url;
-    localStorage.setItem('sc_hero_imgs', JSON.stringify(heroImgs));
+    if (img) img.src = publicUrl;
+    if (prev) prev.src = publicUrl;
+    if (urlInp) urlInp.value = publicUrl;
+    // Save to settings table
+    try {
+      const existing = await sdb.getOne('settings', 'hero');
+      const heroImgs = existing ? (existing.images || {}) : {};
+      heroImgs[idx] = publicUrl;
+      if (existing) { await sdb.update('settings', 'hero', { images: heroImgs }); }
+      else { await supabase.from('settings').insert([{ id: 'hero', images: heroImgs }]); }
+    } catch(e) {}
     showToast('✅ Saqlandi!', 'Rasm yuklandi va saqlandi', 's');
-  };
-  reader.readAsDataURL(file);
+  } else {
+    showToast('❌ Xato', 'Storage ga yuklab bo'lmadi. URL kiriting.', 'e');
+  }
 }
 
-function loadHeroImages() {
+async function loadHeroImages() {
   try {
-    const heroImgs = JSON.parse(localStorage.getItem('sc_hero_imgs') || '{}');
+    const snap = await sdb.getOne('settings', 'hero');
+    const heroImgs = snap ? (snap.images || {}) : {};
     Object.keys(heroImgs).forEach(idx => {
       const url = heroImgs[idx];
       if (!url) return;
@@ -2480,32 +2506,27 @@ function loadHeroImages() {
   } catch(e) {}
 }
 
-// File Upload (to Firebase Storage)
+// File Upload (to Supabase Storage)
 window.uploadFile = async function(fileInputId, urlInputId, callback) {
   const fileInput = document.getElementById(fileInputId);
   const file = fileInput?.files[0];
   if (!file) return;
-  // Always use FileReader as fallback (works without Firebase Storage)
-  const useFirebase = !USE_LOCAL_STORAGE && storage;
-  if (useFirebase) {
-    try {
-      const sRef = storageRef(storage, 'uploads/' + Date.now() + '_' + file.name);
-      await uploadBytes(sRef, file);
-      const url = await getDownloadURL(sRef);
+  showToast('⏳ Yuklanmoqda...', 'Iltimos kuting', 'i');
+  const publicUrl = await uploadToStorage(file, 'products');
+  if (publicUrl) {
+    const urlInput = document.getElementById(urlInputId);
+    if (urlInput) urlInput.value = publicUrl;
+    if (callback) callback(publicUrl);
+    showToast('✅ Rasm yuklandi', '', 's');
+  } else {
+    // Fallback: base64 resize
+    resizeImage(file, 800, 800, 0.85, function(url) {
       const urlInput = document.getElementById(urlInputId);
       if (urlInput) urlInput.value = url;
       if (callback) callback(url);
-      showToast('Rasm yuklandi', '', 's');
-      return;
-    } catch(e) {}
+      showToast('⚠️ Rasm tanlandi (lokal)', 'Storage ishlamadi', 'i');
+    });
   }
-  // Fallback: FileReader + resize (base64)
-  resizeImage(file, 800, 800, 0.85, function(url) {
-    const urlInput = document.getElementById(urlInputId);
-    if (urlInput) urlInput.value = url;
-    if (callback) callback(url);
-    showToast('Rasm tanlandi', '', 's');
-  });
 }
 
 window.updateSiteInfo = async function() {
@@ -2618,36 +2639,55 @@ function resizeImage(file, maxW, maxH, quality, callback) {
 }
 
 // ─── RASM YUKLASH HANDLERLARI ───
-window.handleImgEditFile = function(input) {
+window.handleImgEditFile = async function(input) {
   const file = input.files[0];
   if (!file) return;
-  resizeImage(file, 800, 800, 0.85, function(url) {
-    document.getElementById('imgEditPreview').src = url;
-    document.getElementById('imgEditUrl').value = url;
-    showToast('✅ Rasm tanlandi', 'Saqlash tugmasini bosing', 's');
-  });
+  showToast('⏳ Yuklanmoqda...', 'Iltimos kuting', 'i');
+  const publicUrl = await uploadToStorage(file, 'products');
+  if (publicUrl) {
+    document.getElementById('imgEditPreview').src = publicUrl;
+    document.getElementById('imgEditUrl').value = publicUrl;
+    showToast('✅ Rasm yuklandi', 'Saqlash tugmasini bosing', 's');
+  } else {
+    resizeImage(file, 800, 800, 0.85, function(url) {
+      document.getElementById('imgEditPreview').src = url;
+      document.getElementById('imgEditUrl').value = url;
+      showToast('⚠️ Rasm tanlandi (lokal)', '', 'i');
+    });
+  }
 };
 
-window.handleCatImgEditFile = function(input) {
+window.handleCatImgEditFile = async function(input) {
   const file = input.files[0];
   if (!file) return;
-  resizeImage(file, 800, 800, 0.85, function(url) {
-    document.getElementById('catImgEditPreview').src = url;
-    document.getElementById('catImgEditUrl').value = url;
-    showToast('✅ Rasm tanlandi', 'Saqlash tugmasini bosing', 's');
-  });
+  showToast('⏳ Yuklanmoqda...', 'Iltimos kuting', 'i');
+  const publicUrl = await uploadToStorage(file, 'categories');
+  if (publicUrl) {
+    document.getElementById('catImgEditPreview').src = publicUrl;
+    document.getElementById('catImgEditUrl').value = publicUrl;
+    showToast('✅ Rasm yuklandi', 'Saqlash tugmasini bosing', 's');
+  } else {
+    resizeImage(file, 800, 800, 0.85, function(url) {
+      document.getElementById('catImgEditPreview').src = url;
+      document.getElementById('catImgEditUrl').value = url;
+      showToast('⚠️ Rasm tanlandi (lokal)', '', 'i');
+    });
+  }
 };
 
-window.handleCatFile = function(input) {
+window.handleCatFile = async function(input) {
   const file = input.files[0];
   if (!file) return;
-  resizeImage(file, 800, 800, 0.85, function(url) {
+  showToast('⏳ Yuklanmoqda...', 'Iltimos kuting', 'i');
+  const publicUrl = await uploadToStorage(file, 'categories');
+  const url = publicUrl || await new Promise(res => resizeImage(file, 800, 800, 0.85, res));
+  {
     document.getElementById('cat-img').value = url;
     const prev = document.getElementById('cat-img-prev');
     const wrap = document.getElementById('cat-img-prev-wrap');
     if (prev) { prev.src = url; prev.style.display = 'block'; }
     if (wrap) { const span = wrap.querySelector('span'); if(span) span.style.display = 'none'; }
-    showToast('✅ Rasm tanlandi', '', 's');
+    showToast(publicUrl ? '✅ Rasm yuklandi' : '⚠️ Rasm tanlandi (lokal)', '', 's');
   });
 };
 
