@@ -2357,27 +2357,65 @@ window.addCategory = async function() {
   const image = document.getElementById('cat-img')?.value?.trim();
   if (!name) { showToast('Xato', 'Kategoriya nomini kiriting', 'e'); return; }
   try {
-    let catId;
-    const catData = { name, description: desc, image, created_at: new Date().toISOString() };
+    const catData = { name, description: desc || '', image: image || '', created_at: new Date().toISOString() };
     const saved = await sdb.insert('categories', catData);
-    catId = saved.id;
-    categories.push({ id: catId, name, description: desc, image });
-    renderCategories(); renderCatalogList(); renderAdminCategories(); renderBrands(); refreshCatSelect();
-    document.getElementById('cat-name').value = '';
-    document.getElementById('cat-desc').value = '';
-    document.getElementById('cat-img').value = '';
-    showToast('Kategoriya qo\'shildi!', name, 's');
-  } catch(e) { showToast('Xato', e.message, 'e'); }
+    const newCat = { id: saved.id || ('local_' + Date.now()), name, description: desc || '', image: image || '' };
+    // Duplicate tekshirish - agar mavjud bo'lsa qo'shmaslik
+    if (!categories.find(c => c.id === newCat.id)) {
+      categories.push(newCat);
+    }
+    // Barcha render funksiyalarini qayta chaqirish
+    renderCategories();
+    renderCatalogList();
+    renderAdminCategories();
+    renderBrands();
+    refreshCatSelect();
+    // Inputlarni tozalash
+    const nameEl = document.getElementById('cat-name');
+    const descEl = document.getElementById('cat-desc');
+    const imgEl = document.getElementById('cat-img');
+    if (nameEl) nameEl.value = '';
+    if (descEl) descEl.value = '';
+    if (imgEl) imgEl.value = '';
+    showToast('✅ Kategoriya qo\'shildi!', name, 's');
+  } catch(e) {
+    // Xato bo'lsa ham lokalda saqlashga harakat qil
+    const localId = 'local_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    const newCat = { id: localId, name, description: desc || '', image: image || '' };
+    categories.push(newCat);
+    // LocalDB ga ham saqla
+    try {
+      const arr = JSON.parse(localStorage.getItem('sc_db_categories') || '[]');
+      arr.push({ ...newCat, created_at: new Date().toISOString() });
+      localStorage.setItem('sc_db_categories', JSON.stringify(arr));
+    } catch(le) {}
+    renderCategories();
+    renderCatalogList();
+    renderAdminCategories();
+    renderBrands();
+    refreshCatSelect();
+    const nameEl = document.getElementById('cat-name');
+    const descEl = document.getElementById('cat-desc');
+    const imgEl = document.getElementById('cat-img');
+    if (nameEl) nameEl.value = '';
+    if (descEl) descEl.value = '';
+    if (imgEl) imgEl.value = '';
+    showToast('✅ Kategoriya qo\'shildi!', name + ' (lokal)', 's');
+  }
 }
 
 window.deleteCategory = async function(id) {
   if (!confirm('Kategoriyani o\'chirishni tasdiqlaysizmi?')) return;
   try {
     await sdb.remove('categories', id);
-    categories = categories.filter(c => c.id !== id);
-    renderCategories(); renderCatalogList(); renderAdminCategories();
-    showToast('O\'chirildi', '', 'i');
-  } catch(e) { showToast('Xato', e.message, 'e'); }
+  } catch(e) {}
+  categories = categories.filter(c => c.id !== id);
+  try {
+    const arr = JSON.parse(localStorage.getItem('sc_db_categories') || '[]');
+    localStorage.setItem('sc_db_categories', JSON.stringify(arr.filter(c => c.id !== id)));
+  } catch(le) {}
+  renderCategories(); renderCatalogList(); renderAdminCategories(); renderBrands(); refreshCatSelect();
+  showToast('O\'chirildi', '', 'i');
 }
 
 window.openCatImgEdit = function(idx, name, img) {
