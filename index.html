@@ -1070,9 +1070,7 @@ function checkAdminLogin() {
         <div class="a-form-group">
           <label class="a-label">Kategoriya</label>
           <select class="a-select" id="ap-cat">
-            <option>Futbol</option><option>Basketbol</option><option>Fitnes</option>
-            <option>Tennis</option><option>Suzish</option><option>Yugurish</option>
-            <option>Velosiped</option><option>Boks</option>
+            <option value="">— Kategoriya tanlang —</option>
           </select>
         </div>
         <div class="a-form-group">
@@ -1275,16 +1273,54 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 // Supabase jadvallar tayyor bo'lgach: USE_LOCAL_STORAGE = false qiling
 const USE_LOCAL_STORAGE = false;
 
+// ─── TELEGRAM BOT ───
+const TG_TOKEN = '8282872173:AAEMdFv1jziAksgrIOZEacr-pGCSPUCYClc';
+const TG_CHAT_ID = '7126508484';
+
+async function sendTelegramNotification(order) {
+  try {
+    const items = (order.items || []).map(i => `  • ${i.name} x${i.qty} — ${Number(i.price).toLocaleString()} so'm`).join('\n');
+    const paymentText = order.payment === 'cash' ? '💵 Naqd' : '💳 Karta';
+    const text = `🛒 *YANGI ZAKAZ!*
+
+👤 *Ism:* ${order.name}
+📱 *Telefon:* ${order.phone}
+📍 *Shahar:* ${order.city || '—'}
+${order.comment ? `💬 *Izoh:* ${order.comment}` : ''}
+
+📦 *Mahsulotlar:*
+${items}
+
+💰 *Jami:* ${Number(order.total).toLocaleString()} so'm
+${paymentText}
+
+🕐 ${new Date().toLocaleString('uz-UZ')}`;
+
+    await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: TG_CHAT_ID,
+        text: text,
+        parse_mode: 'Markdown'
+      })
+    });
+  } catch(e) {
+    console.error('TG xato:', e.message);
+  }
+}
+
+
 // ─── SUPABASE STORAGE UPLOAD ───
 async function uploadToStorage(file, folder) {
   try {
     const ext = file.name.split('.').pop() || 'jpg';
     const path = folder + '/' + Date.now() + '_' + Math.random().toString(36).slice(2) + '.' + ext;
-    const { data, error } = await supabase.storage.from('images').upload(path, file, {
+    const { data, error } = await supabase.storage.from('product-images').upload(path, file, {
       cacheControl: '3600', upsert: false, contentType: file.type
     });
     if (error) throw error;
-    const { data: urlData } = supabase.storage.from('images').getPublicUrl(path);
+    const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(path);
     return urlData.publicUrl;
   } catch(e) {
     console.error('Storage upload error:', e.message);
@@ -1457,6 +1493,7 @@ async function loadCategories() {
   renderBrands();
   renderCatalogList();
   renderAdminCategories();
+  refreshCatSelect();
 }
 
 // ─── RENDER PRODUCTS ───
@@ -1513,6 +1550,16 @@ function renderPopular() {
       </div>
     </div>`;
   }).join('');
+}
+
+
+// ─── KATEGORIYA SELECT YANGILASH ───
+function refreshCatSelect() {
+  const sel = document.getElementById('ap-cat');
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML = '<option value="">— Kategoriya tanlang —</option>' +
+    categories.map(c => `<option value="${c.name}"${c.name === current ? ' selected' : ''}>${c.name}</option>`).join('');
 }
 
 // ─── CATEGORIES ───
@@ -1792,6 +1839,8 @@ window.checkout = async function() {
   };
   try {
     await sdb.insert('orders', order);
+    // Telegram xabar yuborish
+    sendTelegramNotification(order);
     // Ombor kamayishi
     for (const cartItem of cart) {
       const p = products.find(x => x.id === cartItem.id);
@@ -2313,7 +2362,7 @@ window.addCategory = async function() {
     const saved = await sdb.insert('categories', catData);
     catId = saved.id;
     categories.push({ id: catId, name, description: desc, image });
-    renderCategories(); renderCatalogList(); renderAdminCategories(); renderBrands();
+    renderCategories(); renderCatalogList(); renderAdminCategories(); renderBrands(); refreshCatSelect();
     document.getElementById('cat-name').value = '';
     document.getElementById('cat-desc').value = '';
     document.getElementById('cat-img').value = '';
