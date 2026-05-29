@@ -2485,7 +2485,7 @@ window.uploadHero = async function(idx, input) {
     } catch(e) {}
     showToast('✅ Saqlandi!', 'Rasm yuklandi va saqlandi', 's');
   } else {
-    showToast('❌ Xato', 'Storage ga yuklab bo'lmadi. URL kiriting.', 'e');
+    showToast('❌ Xato', "Storage ga yuklab bo'lmadi. URL kiriting.", 'e');
   }
 }
 
@@ -2681,14 +2681,12 @@ window.handleCatFile = async function(input) {
   showToast('⏳ Yuklanmoqda...', 'Iltimos kuting', 'i');
   const publicUrl = await uploadToStorage(file, 'categories');
   const url = publicUrl || await new Promise(res => resizeImage(file, 800, 800, 0.85, res));
-  {
-    document.getElementById('cat-img').value = url;
-    const prev = document.getElementById('cat-img-prev');
-    const wrap = document.getElementById('cat-img-prev-wrap');
-    if (prev) { prev.src = url; prev.style.display = 'block'; }
-    if (wrap) { const span = wrap.querySelector('span'); if(span) span.style.display = 'none'; }
-    showToast(publicUrl ? '✅ Rasm yuklandi' : '⚠️ Rasm tanlandi (lokal)', '', 's');
-  });
+  document.getElementById('cat-img').value = url;
+  const prev = document.getElementById('cat-img-prev');
+  const wrap = document.getElementById('cat-img-prev-wrap');
+  if (prev) { prev.src = url; prev.style.display = 'block'; }
+  if (wrap) { const span = wrap.querySelector('span'); if(span) span.style.display = 'none'; }
+  showToast(publicUrl ? '✅ Rasm yuklandi' : '⚠️ Rasm tanlandi (lokal)', '', 's');
 };
 
 // ─── MISSING / FORWARDED FUNCTIONS ───
