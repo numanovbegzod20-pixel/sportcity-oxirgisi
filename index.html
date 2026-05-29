@@ -1298,9 +1298,12 @@ async function uploadToStorage(file, folder) {
 const sdb = {
   async getAll(table) {
     if (USE_LOCAL_STORAGE) return localDB.getData(table);
-    const { data, error } = await supabase.from(table).select('*').order('created_at', { ascending: false });
-    if (error) { console.error('getAll ['+table+']:', error.message); return []; }
-    return (data || []).map(r => ({ ...r, id: String(r.id) }));
+    try {
+      const { data, error } = await supabase.from(table).select('*').order('created_at', { ascending: false });
+      if (error) { console.error('getAll ['+table+']:', error.message); return []; }
+      // Serialize to plain objects to avoid DataCloneError
+      return JSON.parse(JSON.stringify((data || []).map(r => ({ ...r, id: String(r.id) }))));
+    } catch(e) { console.error('getAll ['+table+'] catch:', e.message); return []; }
   },
   async insert(table, item) {
     if (USE_LOCAL_STORAGE) { const ref = localDB.addItem(table, item); return { id: ref.id, ...item }; }
@@ -1320,16 +1323,18 @@ const sdb = {
   },
   async getOne(table, id) {
     if (USE_LOCAL_STORAGE) return localDB.getDoc(table, id);
-    const { data, error } = await supabase.from(table).select('*').eq('id', id).single();
-    if (error) return null;
-    return { ...data, id: String(data.id) };
+    try {
+      const { data, error } = await supabase.from(table).select('*').eq('id', id).single();
+      if (error) return null;
+      return JSON.parse(JSON.stringify({ ...data, id: String(data.id) }));
+    } catch(e) { return null; }
   },
   async getWhere(table, col, val) {
     if (USE_LOCAL_STORAGE) { return localDB.getData(table).filter(r => r[col] === val); }
     try {
       const { data, error } = await supabase.from(table).select('*').eq(col, val);
       if (error) throw error;
-      return (data || []).map(r => ({ ...r, id: String(r.id) }));
+      return JSON.parse(JSON.stringify((data || []).map(r => ({ ...r, id: String(r.id) }))));
     } catch(e) { return []; }
   }
 };
