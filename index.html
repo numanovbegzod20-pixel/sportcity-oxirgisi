@@ -1267,13 +1267,13 @@ function checkAdminLogin() {
 <script type="module">
 // ─── SUPABASE CONFIG ───
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-const SUPABASE_URL = 'https://vxxjayocwazuyrycjsvw.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ4eGpheW9jd2F6dXlyeWNqc3Z3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMjg2MDgsImV4cCI6MjA5NDYwNDYwOH0.kKhyLEeGcfiX3FELHUm3PFMTJ_Q9GTGvASI43gBJSG8';
+const SUPABASE_URL = 'https://jvelzvmdnnaenidoqmnj.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2ZWx6dm1kbm5hZW5pZG9xbW5qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyNzY1ODcsImV4cCI6MjA5NDg1MjU4N30.p4RFYTSG__KGL43R0bsbpKkrd__7EzocR1N_7xid7SM';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 // Supabase tayyor bo'lgunga qadar LocalStorage ishlatamiz
 // Supabase jadvallar tayyor bo'lgach: USE_LOCAL_STORAGE = false qiling
-const USE_LOCAL_STORAGE = true;
+const USE_LOCAL_STORAGE = false;
 
 // ─── SUPABASE DB HELPER ───
 const sdb = {
@@ -2853,4 +2853,3 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 </body>
 </html>
-
