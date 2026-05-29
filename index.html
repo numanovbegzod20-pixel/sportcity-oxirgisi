@@ -50,7 +50,8 @@ button { cursor: pointer; border: none; font-family: 'Barlow', sans-serif; }
 .hero-slides { position: absolute; inset: 0; }
 .hero-slide { position: absolute; inset: 0; opacity: 0; transition: opacity 0.8s ease; }
 .hero-slide.active { opacity: 1; }
-.hero-img { width: 100%; height: 100%; object-fit: cover; object-position: center top; }
+.hero-img { width: 100%; height: 100%; object-fit: cover; object-position: center; transition: transform 0.3s; }
+.hero-img.smart-contain { object-fit: contain; background: #0a0d13; }
 .hero-overlay { position: absolute; inset: 0; background: linear-gradient(110deg, rgba(8,11,18,0.78) 0%, rgba(8,11,18,0.45) 45%, rgba(8,11,18,0.1) 100%); z-index: 1; }
 .hero-content { position: absolute; bottom: 0; left: 0; right: 0; padding: 28px 22px; z-index: 2; }
 .hero-title { font-family: 'Bebas Neue', cursive; font-size: 44px; line-height: 1.0; letter-spacing: 1.5px; color: white; margin-bottom: 10px; text-shadow: 0 2px 20px rgba(0,0,0,0.5); animation: heroFadeUp 0.7s ease both; }
@@ -598,7 +599,7 @@ function checkAdminLogin() {
         <img class="hero-img" id="heroImg1" src="https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=800&q=80" alt="hero2">
         <div class="hero-overlay"></div>
         <div class="hero-content">
-          <div class="hero-title">Yangi<br>Koleksiya<br>2025!</div>
+          <div class="hero-title">Yangi<br>Koleksiya<br>2026!</div>
           <div class="hero-sub">Eng yangi sport<br>kiyim va jihozlar</div>
           <button class="hero-btn" onclick="scrollToProds()">Ko'rish <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>
         </div>
@@ -616,7 +617,7 @@ function checkAdminLogin() {
         <img class="hero-img" id="heroImg3" src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&q=80" alt="hero4">
         <div class="hero-overlay"></div>
         <div class="hero-content">
-          <div class="hero-title">Maxsus<br>Chegirmalar<br>2025!</div>
+          <div class="hero-title">Maxsus<br>Chegirmalar<br>2026!</div>
           <div class="hero-sub">Barcha kategoriyalarda<br>ajoyib narxlar</div>
           <button class="hero-btn" onclick="scrollToProds()">Ko'rish <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>
         </div>
@@ -1196,6 +1197,36 @@ function checkAdminLogin() {
         <input class="a-input" id="site-tg" placeholder="https://t.me/...">
       </div>
       <button class="a-btn" onclick="updateSiteInfo()" style="width:100%">💾 Saqlash</button>
+
+      <!-- PAROL O'ZGARTIRISH -->
+      <div style="height:28px"></div>
+      <div class="a-sec-title">🔐 Admin Parolni O'zgartirish</div>
+      <div style="background:var(--card);border:1px solid rgba(26,108,255,0.2);border-radius:14px;padding:18px;margin-bottom:4px">
+        <div class="a-form-group">
+          <label class="a-label">Joriy parol</label>
+          <div style="position:relative">
+            <input class="a-input" id="cur-pass" type="password" placeholder="Hozirgi parolni kiriting" style="padding-right:40px">
+            <button onclick="togglePassVis('cur-pass',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--gray);font-size:16px;cursor:pointer;padding:4px">👁</button>
+          </div>
+        </div>
+        <div class="a-form-group">
+          <label class="a-label">Yangi parol</label>
+          <div style="position:relative">
+            <input class="a-input" id="new-pass" type="password" placeholder="Yangi parol (kamida 4 belgi)" style="padding-right:40px">
+            <button onclick="togglePassVis('new-pass',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--gray);font-size:16px;cursor:pointer;padding:4px">👁</button>
+          </div>
+        </div>
+        <div class="a-form-group" style="margin-bottom:0">
+          <label class="a-label">Yangi parolni tasdiqlang</label>
+          <div style="position:relative">
+            <input class="a-input" id="confirm-pass" type="password" placeholder="Yangi parolni qayta kiriting" style="padding-right:40px">
+            <button onclick="togglePassVis('confirm-pass',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--gray);font-size:16px;cursor:pointer;padding:4px">👁</button>
+          </div>
+        </div>
+        <div id="pass-change-msg" style="display:none;font-size:11px;font-weight:800;margin-top:10px;padding:8px 12px;border-radius:8px;text-align:center"></div>
+        <button class="a-btn" onclick="changeAdminPassword()" style="width:100%;margin-top:14px">🔒 Parolni Yangilash</button>
+      </div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.3);text-align:center;margin-top:8px;line-height:1.6">Parolni unutsangiz, kod ichida <code style="color:var(--blue2)">SECRET_ADMIN_KEY</code> ni o'zgartiring</div>
     </div>
   </div>
 </div>
@@ -2625,6 +2656,28 @@ async function updateStats() {
   el('statUsers', usersCount);
 }
 
+// ─── HERO RASM SMART FIT ───
+function applySmartHeroFit(imgEl, url) {
+  if (!imgEl || !url) return;
+  const tempImg = new Image();
+  tempImg.onload = function() {
+    const ratio = tempImg.naturalWidth / tempImg.naturalHeight;
+    const heroRatio = imgEl.parentElement
+      ? imgEl.parentElement.offsetWidth / imgEl.parentElement.offsetHeight
+      : 16 / 9;
+    // Agar rasm juda baland yoki juda keng bo'lsa — contain, aks holda cover
+    if (ratio < 0.6 || ratio > 3.5) {
+      imgEl.style.objectFit = 'contain';
+      imgEl.style.background = '#0a0d13';
+    } else {
+      imgEl.style.objectFit = 'cover';
+      imgEl.style.background = '';
+    }
+    imgEl.style.objectPosition = 'center';
+  };
+  tempImg.src = url;
+}
+
 // Hero Images
 window.updateHeroImage = function(idx) {
   const url = document.getElementById('heroUrlInput' + idx)?.value?.trim();
@@ -2634,7 +2687,7 @@ window.updateHeroImage = function(idx) {
   }
   const img = document.getElementById('heroImg' + idx);
   const prev = document.getElementById('adminHeroPreview' + idx);
-  if (img) img.src = url;
+  if (img) { img.src = url; applySmartHeroFit(img, url); }
   if (prev) prev.src = url;
   const heroImgs = JSON.parse(localStorage.getItem('sc_hero_imgs') || '{}');
   heroImgs[idx] = url;
@@ -2651,7 +2704,7 @@ window.uploadHero = async function(idx, input) {
     const img = document.getElementById('heroImg' + idx);
     const prev = document.getElementById('adminHeroPreview' + idx);
     const urlInp = document.getElementById('heroUrlInput' + idx);
-    if (img) img.src = publicUrl;
+    if (img) { img.src = publicUrl; applySmartHeroFit(img, publicUrl); }
     if (prev) prev.src = publicUrl;
     if (urlInp) urlInp.value = publicUrl;
     // Save to settings table
@@ -2664,7 +2717,19 @@ window.uploadHero = async function(idx, input) {
     } catch(e) {}
     showToast('✅ Saqlandi!', 'Rasm yuklandi va saqlandi', 's');
   } else {
-    showToast('❌ Xato', "Storage ga yuklab bo'lmadi. URL kiriting.", 'e');
+    // Lokal base64 fallback
+    resizeImage(file, 1200, 800, 0.9, function(url) {
+      const img = document.getElementById('heroImg' + idx);
+      const prev = document.getElementById('adminHeroPreview' + idx);
+      const urlInp = document.getElementById('heroUrlInput' + idx);
+      if (img) { img.src = url; applySmartHeroFit(img, url); }
+      if (prev) prev.src = url;
+      if (urlInp) urlInp.value = 'local-file';
+      const heroImgs = JSON.parse(localStorage.getItem('sc_hero_imgs') || '{}');
+      heroImgs[idx] = url;
+      localStorage.setItem('sc_hero_imgs', JSON.stringify(heroImgs));
+      showToast('✅ Rasm saqlandi (lokal)', 'Rasm yangilandi', 's');
+    });
   }
 }
 
@@ -2672,15 +2737,18 @@ async function loadHeroImages() {
   try {
     const snap = await sdb.getOne('settings', 'hero');
     const heroImgs = snap ? (snap.images || {}) : {};
-    Object.keys(heroImgs).forEach(idx => {
-      const url = heroImgs[idx];
+    // Also merge localStorage images
+    const localImgs = JSON.parse(localStorage.getItem('sc_hero_imgs') || '{}');
+    const merged = { ...localImgs, ...heroImgs };
+    Object.keys(merged).forEach(idx => {
+      const url = merged[idx];
       if (!url) return;
       const img = document.getElementById('heroImg' + idx);
       const prev = document.getElementById('adminHeroPreview' + idx);
       const urlInp = document.getElementById('heroUrlInput' + idx);
-      if (img) img.src = url;
+      if (img) { img.src = url; applySmartHeroFit(img, url); }
       if (prev) prev.src = url;
-      if (urlInp) urlInp.value = url;
+      if (urlInp && url !== 'local-file') urlInp.value = url;
     });
   } catch(e) {}
 }
