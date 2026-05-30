@@ -525,45 +525,121 @@ button { cursor: pointer; border: none; font-family: 'Barlow', sans-serif; }
 
 </style>
 <script>
-// ─── ADMIN LOGIN MODAL ───
-function showAdminLoginModal() {
-  var modal = document.getElementById('adminLoginModal');
-  if (modal) {
-    modal.style.display = 'flex';
-    setTimeout(function(){ var inp = document.getElementById('adminLoginPassInput'); if(inp) inp.focus(); }, 100);
+// ─── ADMIN LOGIN MODAL (global stubs — real logic in DOMContentLoaded) ───
+var _adminPinGlobal = '';
+// ─── ADMIN PIN — YAGONA ISHONCHLI TIZIM ───
+// Bu funksiyalar sahifa yuklanishi bilan darhol ishlaydi,
+// type="module" kutmasdan. Supabase yuklanmasa ham 6002 ishlaydi.
+
+var _pin = ''; // yagona PIN holati
+
+function _pinDots() {
+  for (var i = 0; i < 4; i++) {
+    var d = document.getElementById('apd' + i);
+    if (d) {
+      d.style.background = i < _pin.length ? '#1a6cff' : 'transparent';
+      d.style.borderColor = i < _pin.length ? '#1a6cff' : 'rgba(255,255,255,0.3)';
+    }
   }
 }
-function hideAdminLoginModal() {
+
+function _openAdminNow() {
   var modal = document.getElementById('adminLoginModal');
   if (modal) modal.style.display = 'none';
-  var inp = document.getElementById('adminLoginPassInput');
-  if (inp) inp.value = '';
+  var profileOverlay = document.getElementById('profileOverlay');
+  if (profileOverlay) profileOverlay.classList.remove('open');
+  var adminLock = document.getElementById('adminLockOverlay');
+  if (adminLock) adminLock.classList.remove('open');
+  var adminOverlay = document.getElementById('adminOverlay');
+  if (adminOverlay) adminOverlay.classList.add('open');
+  if (typeof adminUnlocked !== 'undefined') adminUnlocked = true;
+  // window ga ham yozamiz (module scope uchun)
+  window._adminUnlocked = true;
+  if (typeof renderAdminProducts === 'function') renderAdminProducts();
+  if (typeof renderAdminOrders === 'function') renderAdminOrders();
+  if (typeof renderAdminCategories === 'function') renderAdminCategories();
+  if (typeof renderAdminUsers === 'function') renderAdminUsers();
+  if (typeof updateStats === 'function') updateStats();
+  if (typeof showToast === 'function') showToast('Admin panel', 'Xush kelibsiz!', 's');
+}
+
+function showAdminLoginModal() {
+  // profileOverlay ni yopib, PIN modalini ochish
+  var profile = document.getElementById('profileOverlay');
+  if (profile) profile.classList.remove('open');
+  var modal = document.getElementById('adminLoginModal');
+  if (modal) modal.style.display = 'flex';
+  _pin = '';
+  window._adminPin = '';
+  _adminPinGlobal = '';
+  _pinDots();
   var err = document.getElementById('adminLoginErr');
   if (err) err.style.display = 'none';
 }
-function checkAdminLogin() {
-  var inp = document.getElementById('adminLoginPassInput');
+
+function hideAdminLoginModal() {
+  var modal = document.getElementById('adminLoginModal');
+  if (modal) modal.style.display = 'none';
+  _pin = '';
+  window._adminPin = '';
+  _adminPinGlobal = '';
+  _pinDots();
   var err = document.getElementById('adminLoginErr');
-  if (!inp) return;
-  if (inp.value === '6002') {
-    hideAdminLoginModal();
-    var profileOverlay = document.getElementById('profileOverlay');
-    if (profileOverlay) profileOverlay.classList.remove('open');
-    var adminOverlay = document.getElementById('adminOverlay');
-    if (adminOverlay) adminOverlay.classList.add('open');
-    if (typeof renderAdminProducts === 'function') renderAdminProducts();
-    if (typeof renderAdminOrders === 'function') renderAdminOrders();
-    if (typeof renderAdminCategories === 'function') renderAdminCategories();
-    if (typeof renderAdminUsers === 'function') renderAdminUsers();
-    if (typeof updateStats === 'function') updateStats();
-    if (typeof switchAdminTab === 'function') switchAdminTab('dashboard');
-  } else {
-    if (err) err.style.display = 'block';
-    inp.value = '';
-    inp.focus();
-    setTimeout(function(){ if(err) err.style.display = 'none'; }, 2500);
+  if (err) err.style.display = 'none';
+}
+
+function _updateAdminPinDots() { _pinDots(); }
+
+function adminPinPress(val) {
+  // Agar module yuklanib bo'lgan bo'lsa, uning versiyasini ishlatamiz
+  if (window._adminPinPressReady && typeof window._adminPinPressReal === 'function') {
+    window._adminPinPressReal(val); return;
+  }
+  // Fallback — Supabase kutmasdan ishlaydi
+  _pin = (_pin || '');
+  if (_pin.length >= 4) return;
+  _pin += val;
+  window._adminPin = _pin;
+  _adminPinGlobal = _pin;
+  _pinDots();
+  if (_pin.length === 4) {
+    var enteredPin = _pin;
+    setTimeout(function() {
+      var correct = '6002';
+      // localStorage dan parol tekshirish
+      try {
+        var sc = localStorage.getItem('sc_admin_pass');
+        if (sc) correct = sc;
+      } catch(e) {}
+      if (enteredPin === correct) {
+        _pin = ''; _pinDots();
+        _openAdminNow();
+      } else {
+        var err = document.getElementById('adminLoginErr');
+        if (err) err.style.display = 'block';
+        for (var i = 0; i < 4; i++) {
+          var dot = document.getElementById('apd' + i);
+          if (dot) { dot.style.background = '#ff3b3b'; dot.style.borderColor = '#ff3b3b'; }
+        }
+        setTimeout(function() {
+          _pin = ''; window._adminPin = ''; _adminPinGlobal = '';
+          _pinDots();
+          if (err) err.style.display = 'none';
+        }, 1000);
+      }
+    }, 200);
   }
 }
+
+function adminPinBack() {
+  _pin = (_pin || '').slice(0, -1);
+  window._adminPin = _pin;
+  _adminPinGlobal = _pin;
+  _pinDots();
+}
+
+// legacy stub
+function checkAdminLogin() {}
 </script>
 </head>
 <body>
@@ -826,7 +902,7 @@ function checkAdminLogin() {
         </button>
 
         <div style="margin-top:16px;font-size:11px;color:rgba(255,255,255,0.3);text-align:center;line-height:1.7">
-          Raqamingizni kiriting — PIN kod o'rnating<br>va hisobingizga kiring
+          Telefon raqamingizni kiriting<br>va hisobingizga kiring
         </div>
 
         <!-- Admin kirish tugmasi -->
@@ -1892,14 +1968,17 @@ function updateCartBadge() {
 
 window.openCart = function() {
   // Re-sync cart items against current products (fixes stale name/price/image)
-  cart = cart.map(item => {
-    const live = products.find(p => p.id === item.id);
-    if (live) {
-      return { ...item, name: live.name, price: live.price, image: live.image || item.image, brand: live.brand || item.brand };
-    }
-    return item;
-  }).filter(item => item.name && Number(item.price) > 0);
-  saveCart();
+  // Agar products bo'sh bo'lsa ham savat ochiladi
+  if (products && products.length > 0) {
+    cart = cart.map(item => {
+      const live = products.find(p => p.id === item.id);
+      if (live) {
+        return { ...item, name: live.name, price: live.price, image: live.image || item.image, brand: live.brand || item.brand };
+      }
+      return item;
+    }).filter(item => item.name && Number(item.price) > 0);
+    saveCart();
+  }
   document.getElementById('cartOverlay').classList.add('open');
   document.getElementById('cartSheet').classList.add('open');
   renderCartItems();
@@ -1963,6 +2042,13 @@ window.setPayment = function(type) {
 }
 
 window.checkout = async function() {
+  // Majburiy login tekshiruvi
+  if (!currentUser || !currentUser.phone) {
+    closeCart();
+    showToast('Iltimos kiring', 'Zakaz uchun avval profilingizga kiring', 'i');
+    setTimeout(() => openProfile(), 400);
+    return;
+  }
   const name = document.getElementById('checkoutName')?.value?.trim();
   const phone = document.getElementById('checkoutPhone')?.value?.replace(/\D/g,'').trim();
   const city = document.getElementById('checkoutCity')?.value?.trim();
@@ -2071,25 +2157,12 @@ window.loginByPhone = function() {
   const fullPhone = '+998' + raw;
   currentPhone = fullPhone;
 
-  // Telefon raqamni PIN step da ko'rsatish
-  const pinShow = document.getElementById('pinPhoneShow');
-  if (pinShow) pinShow.textContent = '📱 ' + fullPhone;
-
-  // Bu telefon avval ro'yxatdan o'tganmi?
-  const savedPin = localStorage.getItem('sc_pin_' + currentPhone);
-  pinValue = '';
-  confirmingPin = false;
-  firstPin = '';
-  updatePinDots();
-
-  if (savedPin) {
-    document.getElementById('pinSubText').textContent = 'PIN kodingizni kiriting';
-    document.getElementById('pinHintTxt').textContent = '';
-  } else {
-    document.getElementById('pinSubText').textContent = 'Yangi PIN kod o\'rnating';
-    document.getElementById('pinHintTxt').textContent = '(4 ta raqam kiriting)';
-  }
-  goAuthStep(2);
+  // PIN so'ramasdan to'g'ridan-to'g'ri profilga o'tish
+  savePhoneUser(fullPhone);
+  goAuthStep(3);
+  showPhoneProfile(fullPhone);
+  showToast('✅ Xush kelibsiz!', fullPhone, 's');
+  document.getElementById('profileOverlay').classList.remove('open');
 }
 
 window.loginWithGoogle = function() {
@@ -2283,7 +2356,13 @@ window.setNavActive = function(id) {
 
 // ─── ADMIN PANEL ───
 window.openAdminPanel = function() {
-  document.getElementById('adminLockOverlay').classList.add('open');
+  // Agar adminLockOverlay mavjud bo'lsa uni ishlatamiz, aks holda PIN modal ochiladi
+  const lockOverlay = document.getElementById('adminLockOverlay');
+  if (lockOverlay) {
+    lockOverlay.classList.add('open');
+  } else {
+    showAdminLoginModal();
+  }
 }
 
 window.checkAdminPass = async function() {
@@ -3019,18 +3098,40 @@ document.addEventListener('DOMContentLoaded', async () => {
     const modal = document.getElementById('adminLoginModal');
     if (modal) {
       modal.style.display = 'flex';
-      setTimeout(() => { const inp = document.getElementById('adminLoginPassInput'); if(inp) inp.focus(); }, 100);
+      window._adminPin = '';
+      updateAdminPinDots();
+      const err = document.getElementById('adminLoginErr');
+      if (err) err.style.display = 'none';
     }
   };
   window.hideAdminLoginModal = function() {
     const modal = document.getElementById('adminLoginModal');
     if (modal) modal.style.display = 'none';
-    const inp = document.getElementById('adminLoginPassInput');
-    if (inp) inp.value = '';
+    window._adminPin = '';
+    updateAdminPinDots();
     const err = document.getElementById('adminLoginErr');
     if (err) err.style.display = 'none';
   };
-  // window.checkAdminLogin - global script blokida aniqlangan, bu yerda ortiqcha
+  function updateAdminPinDots() {
+    const pin = window._adminPin || '';
+    for (let i = 0; i < 4; i++) {
+      const dot = document.getElementById('apd' + i);
+      if (dot) {
+        dot.style.background = i < pin.length ? '#1a6cff' : 'transparent';
+        dot.style.borderColor = i < pin.length ? '#1a6cff' : 'rgba(255,255,255,0.3)';
+      }
+    }
+  }
+  // Module yuklanishi bilan adminUnlocked ni window._adminUnlocked bilan sinxronlaymiz
+  window._adminPinPressReady = false; // fallback ishlatilsin
+  // adminUnlocked ni har 500ms tekshirib turamiz (PIN orqali kirganlik uchun)
+  setInterval(function() {
+    if (window._adminUnlocked && !adminUnlocked) {
+      adminUnlocked = true;
+      document.getElementById('adminOverlay')?.classList.add('open');
+      renderAdminProducts(); renderAdminOrders(); renderAdminCategories(); renderAdminUsers(); updateStats();
+    }
+  }, 300);
 
   // Admin bo'lsa — real-time zakaz kuzatish (sahifa ochiq bo'lsa)
   supabase.channel('admin-orders')
@@ -3119,14 +3220,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     <div style="text-align:center;margin-bottom:20px">
       <div style="width:52px;height:52px;background:linear-gradient(135deg,#1a6cff,#4d8fff);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:24px;box-shadow:0 6px 20px rgba(26,108,255,0.4)">&#9881;&#65039;</div>
       <div style="font-family:'Bebas Neue',cursive;font-size:24px;letter-spacing:2px;color:white">ADMIN PANEL</div>
-      <div style="font-size:12px;color:rgba(255,255,255,0.45);margin-top:4px">Parolni kiriting</div>
+      <div style="font-size:12px;color:rgba(255,255,255,0.45);margin-top:4px">PIN kodni kiriting</div>
     </div>
-    <div style="display:flex;gap:8px;margin-bottom:10px">
-      <input id="adminLoginPassInput" type="password" placeholder="Parol..." onkeydown="if(event.key==='Enter')checkAdminLogin()" style="flex:1;background:#131921;border:1.5px solid rgba(255,255,255,0.08);border-radius:10px;color:white;font-family:'Barlow',sans-serif;font-size:15px;padding:12px 14px;outline:none;transition:border-color 0.2s" onfocus="this.style.borderColor='#1a6cff'" onblur="this.style.borderColor='rgba(255,255,255,0.08)'">
-      <button onclick="checkAdminLogin()" style="background:#1a6cff;border:none;border-radius:10px;padding:12px 18px;color:white;font-weight:900;font-size:15px;cursor:pointer">&#8594;</button>
+    <!-- PIN dots -->
+    <div style="display:flex;justify-content:center;gap:14px;margin-bottom:10px">
+      <div id="apd0" style="width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,0.3);transition:all 0.2s"></div>
+      <div id="apd1" style="width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,0.3);transition:all 0.2s"></div>
+      <div id="apd2" style="width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,0.3);transition:all 0.2s"></div>
+      <div id="apd3" style="width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,0.3);transition:all 0.2s"></div>
     </div>
-    <div id="adminLoginErr" style="display:none;color:#ff3b3b;font-size:11px;font-weight:700;text-align:center;margin-bottom:8px">&#10060; Noto'g'ri parol</div>
-    <button onclick="hideAdminLoginModal()" style="width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:11px;color:rgba(255,255,255,0.45);font-size:12px;font-weight:700;cursor:pointer;font-family:'Barlow',sans-serif;letter-spacing:0.5px">Bekor qilish</button>
+    <div id="adminLoginErr" style="display:none;color:#ff3b3b;font-size:11px;font-weight:700;text-align:center;margin-bottom:8px">&#10060; Noto'g'ri PIN</div>
+    <!-- PIN pad -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
+      <button onclick="adminPinPress('1')" style="background:#131921;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px;color:white;font-size:20px;font-weight:700;cursor:pointer;font-family:'Barlow',sans-serif;transition:background 0.15s" onmousedown="this.style.background='#1a2233'" onmouseup="this.style.background='#131921'">1</button>
+      <button onclick="adminPinPress('2')" style="background:#131921;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px;color:white;font-size:20px;font-weight:700;cursor:pointer;font-family:'Barlow',sans-serif;transition:background 0.15s" onmousedown="this.style.background='#1a2233'" onmouseup="this.style.background='#131921'">2</button>
+      <button onclick="adminPinPress('3')" style="background:#131921;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px;color:white;font-size:20px;font-weight:700;cursor:pointer;font-family:'Barlow',sans-serif;transition:background 0.15s" onmousedown="this.style.background='#1a2233'" onmouseup="this.style.background='#131921'">3</button>
+      <button onclick="adminPinPress('4')" style="background:#131921;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px;color:white;font-size:20px;font-weight:700;cursor:pointer;font-family:'Barlow',sans-serif;transition:background 0.15s" onmousedown="this.style.background='#1a2233'" onmouseup="this.style.background='#131921'">4</button>
+      <button onclick="adminPinPress('5')" style="background:#131921;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px;color:white;font-size:20px;font-weight:700;cursor:pointer;font-family:'Barlow',sans-serif;transition:background 0.15s" onmousedown="this.style.background='#1a2233'" onmouseup="this.style.background='#131921'">5</button>
+      <button onclick="adminPinPress('6')" style="background:#131921;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px;color:white;font-size:20px;font-weight:700;cursor:pointer;font-family:'Barlow',sans-serif;transition:background 0.15s" onmousedown="this.style.background='#1a2233'" onmouseup="this.style.background='#131921'">6</button>
+      <button onclick="adminPinPress('7')" style="background:#131921;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px;color:white;font-size:20px;font-weight:700;cursor:pointer;font-family:'Barlow',sans-serif;transition:background 0.15s" onmousedown="this.style.background='#1a2233'" onmouseup="this.style.background='#131921'">7</button>
+      <button onclick="adminPinPress('8')" style="background:#131921;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px;color:white;font-size:20px;font-weight:700;cursor:pointer;font-family:'Barlow',sans-serif;transition:background 0.15s" onmousedown="this.style.background='#1a2233'" onmouseup="this.style.background='#131921'">8</button>
+      <button onclick="adminPinPress('9')" style="background:#131921;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px;color:white;font-size:20px;font-weight:700;cursor:pointer;font-family:'Barlow',sans-serif;transition:background 0.15s" onmousedown="this.style.background='#1a2233'" onmouseup="this.style.background='#131921'">9</button>
+      <button onclick="hideAdminLoginModal()" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px;color:rgba(255,255,255,0.35);font-size:11px;font-weight:700;cursor:pointer;font-family:'Barlow',sans-serif;letter-spacing:0.5px">Bekor</button>
+      <button onclick="adminPinPress('0')" style="background:#131921;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px;color:white;font-size:20px;font-weight:700;cursor:pointer;font-family:'Barlow',sans-serif;transition:background 0.15s" onmousedown="this.style.background='#1a2233'" onmouseup="this.style.background='#131921'">0</button>
+      <button onclick="adminPinBack()" style="background:#131921;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px;color:white;font-size:20px;font-weight:700;cursor:pointer;font-family:'Barlow',sans-serif;transition:background 0.15s" onmousedown="this.style.background='#1a2233'" onmouseup="this.style.background='#131921'">⌫</button>
+    </div>
   </div>
 </div>
 
